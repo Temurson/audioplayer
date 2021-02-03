@@ -17,20 +17,24 @@ import express from 'express'                       // Simple web server framewo
 import bodyParser from 'body-parser'                // Parses request bodies, making them available as `req.body`
 import compression from 'compression'               // Compresses responses w/gzip, etc. https://npmjs.com/package/compression
 import cookieParser from 'cookie-parser'            // Parses client cookies, making them available as `req.cookies`
-import debug from 'debug'                           // Small development debug logger. https://npmjs.com/package/debug
+import Debug from 'debug'                           // Small development debug logger. https://npmjs.com/package/debug
 import morgan from 'morgan'                         // Logs info (e.g. status code) for each requests
 import passport from 'passport'                     // Authentication management middleware. https://passportjs.com
 import path from 'path'                             // File path utilities. https://nodejs.org/api/path.html
 import session from 'express-session'               // Auth session storage. https://npmjs.com/package/express-session
+import { nextTick } from 'process'
+
+
 
 // =============================================================================
 // =============================== CONFIGURATION ===============================
 // =============================================================================
 
-const config = require('./config')
-const routes = require('./routes')
-require('./passport.config') // Configure passport. This doesn't export anything, it just runs setup logic.
+// const config = require('./config')
+// const routes = require('./routes')
+// require('./passport.config') // Configure passport. This doesn't export anything, it just runs setup logic.
 
+const debug = Debug('app')
 const { NODE_ENV } = process.env
 const { MemoryStore } = session
 const {
@@ -40,12 +44,6 @@ const {
   SECRET
 } = config
 // Connect to our MongoDB instance
-mongoose.connect(DB_URL, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-    useCreateIndex: true
-}).then(() => debug(`Connected to MongoDB at ${DB_URL}`))
-.catch(err => console.error('Failed to connect to mongodb:', err.stack))
 
 
 
@@ -61,24 +59,15 @@ app.set('port', PORT)
 const layoutsDir = path.resolve(__dirname, 'views', 'layouts')
 debug('layout directory: %s', layoutsDir)
 
-app.set('view engine', 'hbs');
-app.set('views', path.join(__dirname, 'views'));
-app.engine('hbs', hbs.express4({
-  partialsDir: path.join(__dirname, 'views', 'partials'),
-  layoutsDir,
-  defaultLayout: path.join(layoutsDir, 'default.hbs'),
-  templateOptions: {
-    PROD: NODE_ENV === 'production'
-  },
-  beautify: NODE_ENV === 'development'
-}))
-
+app.use((req, res, next) => {
+    console.log('Incoming request from client %s', req.ip)
+    next()
+})
 // Mount global middleware
 app.use(morgan('combined'))
-app.use('/static', express.static(path.resolve(__dirname, '../static')))
+// app.use('/static', express.static(path.resolve(__dirname, '../static')))
 app.use(cookieParser(SECRET)) // Note: There will be issues if session and cookie-parser don't use the same secret
 app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: true }))
 app.use(session({
   secret: SECRET,
   // Don't force the session id to be resaved to the session store, even if it hasn't expired.
@@ -101,5 +90,5 @@ app.use(passport.session())
 app.use(compression())
 
 // Mount the routes. This must come after mounting middleware.
-app.use('/', routes.pageRoutes)
-app.use('/user', routes.userRoutes)
+// app.use('/', routes.pageRoutes)
+// app.use('/user', routes.userRoutes)
